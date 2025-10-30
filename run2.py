@@ -5,111 +5,102 @@ from collections import deque
 def solve(edges: list[tuple[str, str]]) -> list[str]:
     """
     Решение задачи об изоляции вируса
+
+    Args:
+        edges: список коридоров в формате (узел1, узел2)
+
+    Returns:
+        список отключаемых коридоров в формате "Шлюз-узел"
     """
     graph = build_graph(edges)
-    targets = {node for node in graph if node.isupper()}
+    targets = {n for n in graph if n.isupper()}
     result = []
     virus_pos = 'a'
-    while targets and virus_pos:
+
+    while True:
         target = find_target_gateway(graph, virus_pos, targets)
         if not target:
             break
-        critical_edges = find_critical_edges(graph, virus_pos, target)
-        if not critical_edges:
-            break
-        edge_to_remove = min(critical_edges)
-        result.append(edge_to_remove)
-        delete_edge, node = edge_to_remove.split('-')
-        remove_edge(graph, delete_edge, node)
-        if not graph[delete_edge]:
-            targets.discard(delete_edge)
+        for neighbor in sorted(graph[virus_pos]):
+            if neighbor == target:
+                edge = f"{target}-{virus_pos}"
+                result.append(edge)
+                remove_edge(graph, target, virus_pos)
+                if not graph[target]:
+                    targets.discard(target)
+                break
+
+        else:
+            path = find_path(graph, virus_pos, target)
+            if not path:
+                break
+            prev = path[-2]
+            edge = f"{target}-{prev}"
+            result.append(edge)
+            remove_edge(graph, target, prev)
+            if not graph[target]:
+                targets.discard(target)
         virus_pos = find_next_step(graph, virus_pos, targets)
+        if not virus_pos:
+            break
     return result
 
 def build_graph(edges):
     graph = {}
-    for node1, node2 in edges:
-        graph.setdefault(node1, []).append(node2)
-        graph.setdefault(node2, []).append(node1)
+    for a, b in edges:
+        graph.setdefault(a, []).append(b)
+        graph.setdefault(b, []).append(a)
+    for v in graph:
+        graph[v].sort()
     return graph
 
-def remove_edge(graph, node1, node2):
-    if node1 in graph and node2 in graph[node1]:
-        graph[node1].remove(node2)
-    if node2 in graph and node1 in graph[node2]:
-        graph[node2].remove(node1)
+def remove_edge(graph, a, b):
+    if b in graph.get(a, []):
+        graph[a].remove(b)
+    if a in graph.get(b, []):
+        graph[b].remove(a)
 
-def find_target_gateway(graph, virus_pos, targets):
-    if not targets:
-        return None
-    visited = set([virus_pos])
-    queue = deque([(virus_pos, 0)])
-    best_gateway = None
-    best_distance = float('inf')
+def find_path(graph, start, goal):
+    queue = deque([[start]])
+    visited = {start}
     while queue:
-        current, distance = queue.popleft()
+        path = queue.popleft()
+        node = path[-1]
+        if node == goal:
+            return path
+        for neighbor in sorted(graph.get(node, [])):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(path + [neighbor])
+    return None
 
-        for neighbor in graph.get(current, []):
+def find_target_gateway(graph, start, targets):
+    queue = deque([(start, 0)])
+    visited = {start}
+    best = None
+    best_dist = float('inf')
+    while queue:
+        node, d = queue.popleft()
+        for neighbor in sorted(graph.get(node, [])):
             if neighbor in visited:
                 continue
             if neighbor in targets:
-                if distance + 1 < best_distance or (distance + 1 == best_distance and neighbor < best_gateway):
-                    best_gateway = neighbor
-                    best_distance = distance + 1
+                if d + 1 < best_dist or (d + 1 == best_dist and neighbor < best):
+                    best = neighbor
+                    best_dist = d + 1
             else:
                 visited.add(neighbor)
-                queue.append((neighbor, distance + 1))
+                queue.append((neighbor, d + 1))
+    return best
 
-    return best_gateway
-
-def find_critical_edges(graph, virus_pos, target):
-    dist = {}
-    prev = {}
-    queue = deque([virus_pos])
-    dist[virus_pos] = 0
-    prev[virus_pos] = None
-    while queue:
-        current = queue.popleft()
-        for neighbor in graph.get(current, []):
-            if neighbor not in dist:
-                dist[neighbor] = dist[current] + 1
-                prev[neighbor] = current
-                queue.append(neighbor)
-    if target not in dist:
-        return set()
-    critical_edges = set()
-    for node in graph.get(target, []):
-        if node in dist and dist[node] + 1 == dist[target]:
-            critical_edges.add(f"{target}-{node}")
-
-    return critical_edges
-
-
-def find_next_step(graph, virus_pos, targets):
-    if not targets:
+def find_next_step(graph, start, targets):
+    target = find_target_gateway(graph, start, targets)
+    if not target:
         return None
-    target_gateway = find_target_gateway(graph, virus_pos, targets)
-    if not target_gateway:
+    path = find_path(graph, start, target)
+    if not path or len(path) < 2:
         return None
-    visited = set([virus_pos])
-    queue = deque([virus_pos])
-    prev = {}
-    while queue:
-        current = queue.popleft()
-        for neighbor in graph.get(current, []):
-            if neighbor not in visited:
-                visited.add(neighbor)
-                prev[neighbor] = current
-                queue.append(neighbor)
-                if neighbor == target_gateway:
-                    path = []
-                    node = neighbor
-                    while node != virus_pos:
-                        path.append(node)
-                        node = prev[node]
-                    return path[-1]
-
-    return None
+    return path[1]
 
 def main():
     edges = []
