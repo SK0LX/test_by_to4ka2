@@ -2,6 +2,7 @@ import sys
 from collections import deque
 
 
+
 def solve(edges: list[tuple[str, str]]) -> list[str]:
     """
     Решение задачи об изоляции вируса
