@@ -2,7 +2,6 @@ import sys
 from collections import deque
 
 
-
 def solve(edges: list[tuple[str, str]]) -> list[str]:
     """
     Решение задачи об изоляции вируса
@@ -25,9 +24,9 @@ def solve(edges: list[tuple[str, str]]) -> list[str]:
         result.append(edge_to_remove)
         gateway, node = edge_to_remove.split('-')
         target = gateway
-        next_virus_pos = find_next_step(graph, virus_pos, target)
         graph[gateway].remove(node)
         graph[node].remove(gateway)
+        next_virus_pos = find_next_step(graph, virus_pos, target)
         if not graph[gateway]:
             targets.discard(gateway)
         virus_pos = next_virus_pos
